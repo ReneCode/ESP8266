@@ -18,7 +18,7 @@ char gString[MAX_STRING_LEN];
 
 const int LOOP_DELAY_SECOND =   10;
 
-
+const char LED_ROW_DELIMITER = '/';
 const char LED_COL_DELIMITER = ',';
 const int LED_ROWS = 4;
 const int LED_COLS = 4;
@@ -27,8 +27,6 @@ const int LED_COLS = 4;
 #define NUMPIXELS      (LED_ROWS * LED_COLS)
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_RGB + NEO_KHZ800);
-
-
 
 
 bool connectWifi() {
@@ -70,8 +68,6 @@ int randomColor()
   return pixels.Color(random(255), random(255), random(255));
 }
 
-
-
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -106,6 +102,8 @@ bool getTextFromJson(const char* sJson, String &sText) {
   return true;
 }
 
+// pixels.Color parameter seems to be GreeRedBlue
+// but RGB is more intuitive
 int RGB(int r, int g, int b) {
   return pixels.Color(g,r,b);
 }
@@ -123,12 +121,11 @@ void showLed(int row, int col, const char* sValue) {
   const int h = 60;
   const int H = 255;
 
-
-  Serial.printf("idx:%d = row:%d, col:%d, val:%s\n", i, row, col, sValue);
+//  Serial.printf("idx:%d = row:%d, col:%d, val:%s\n", i, row, col, sValue);
 
   //  Red, Green Blue
   if ( strcmp("0", sValue) == 0)  color = 0;
-  if ( strcmp("1", sValue) == 0)  color = RGB(H,H,H);
+  if ( strcmp("1", sValue) == 0)  color = RGB(h,h,h);
   if ( strcmp("r", sValue) == 0)  color = RGB(h,0,0);
   if ( strcmp("g", sValue) == 0)  color = RGB(0,h,0);
   if ( strcmp("b", sValue) == 0)  color = RGB(0,0,h);
@@ -167,20 +164,24 @@ void hideAllLeds() {
 }
 
 bool showLeds(String &cmd) {
-  char *ptr = fillGlobalString(cmd.c_str());
-  if (!ptr) {
-    return false;
-  }
   hideAllLeds();
-  char delimiter[] = "/";
-  ptr = strtok(ptr, delimiter);
+
   int row = 0;
-  int col = 0; 
-  while ( ptr) {
-    showLedRow(row, ptr);
-    ptr = strtok(NULL, delimiter); 
-    row++;
+  String sRow = "";
+  const char *ptr = cmd.c_str();
+  while (ptr && *ptr != 0) {
+    if (*ptr != LED_ROW_DELIMITER) {
+      sRow.concat(*ptr);
+    }
+    else {
+      showLedRow(row, sRow.c_str());
+      row++;
+      sRow = "";
+    }
+    ptr++;
   }
+  showLedRow(row, sRow.c_str());
+
   pixels.show();
 }
 
