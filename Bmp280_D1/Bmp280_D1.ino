@@ -19,30 +19,29 @@
 
 Adafruit_BMP280 bmp; 
 
-
-const int SLEEP_US = 5 * 1000 * 1000;
+const int SLEEP_SECOND = 10;
 const int BEEP_PIN = 15;
 
-const int FLASH_ADR = 0;
-#define BUFFER_LEN  20
+#define MAX_DATA_COUNT 100
 
 
 typedef struct {
-  int value;
-} config_t;
+  int count;
+  float temperature[MAX_DATA_COUNT] ;
+  float pressure[MAX_DATA_COUNT];
+} data_t;
 
-config_t cfg;
+data_t data_store;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println(F("BMP280 test"));
+  delay(100);
 
   hardwareInit();
   work();
 
-  Serial.println();
-
-  ESP.deepSleep(SLEEP_US);
+  // parameter = micro seconds
+  ESP.deepSleep(SLEEP_SECOND * 1000 * 1000);
   delay(100);
 }
 
@@ -57,27 +56,16 @@ void hardwareInit() {
 }
 
 void beep() {
-//  int nr = readFlash();
-
-  loadConfig();
-  cfg.value++;
-  Serial.print("nr:");
-  Serial.print(cfg.value);
-  Serial.println();
-    
   digitalWrite(BEEP_PIN, true);
   delay(10);
   digitalWrite(BEEP_PIN, false);
-
-  saveConfig();
-//  eraseConfig();
 }
 
 
-void eraseConfig() {
+void eraseDataStore() {
   // Reset EEPROM bytes to '0' for the length of the data structure
   EEPROM.begin(512);
-  for (int i = 0 ; i < sizeof(cfg) ; i++) {
+  for (int i = 0 ; i < sizeof(data_store) ; i++) {
     EEPROM.write(i, 0);
   }
   delay(200);
@@ -85,39 +73,74 @@ void eraseConfig() {
   EEPROM.end();
 }
 
-void loadConfig() {
+void loadDataStore() {
   // Loads configuration from EEPROM into RAM
   EEPROM.begin(512);
-  EEPROM.get( 0, cfg );
+  EEPROM.get( 0, data_store );
   EEPROM.end();
 }
 
-void saveConfig() {
+void saveDataStore() {
   // Save configuration from RAM into EEPROM
   EEPROM.begin(512);
-  EEPROM.put( 0, cfg );
+  EEPROM.put( 0, data_store );
   delay(200);
   EEPROM.commit();                      // Only needed for ESP8266 to get data written
+  delay(100);
+}
+
+void storeData(float temperature, float pressure) {
+  //  eraseConfig();
+  loadDataStore();
+  int index = data_store.count;
+  if (index < MAX_DATA_COUNT) {
+    // enough space for new data
+    data_store.temperature[index] = temperature;
+    data_store.pressure[index] = pressure;
+  }
+  else {
+    // move the data - erase the oldest
+  }
+  data_store.count = index+1;
+  saveDataStore();
 }
 
 
+void printData() {
+  Serial.print("count of data:");
+  Serial.print(data_store.count);
+  Serial.println();
+
+  for (int i=0; i<data_store.count; i++) {
+    Serial.print("temp:");
+    Serial.print(data_store.temperature[i]);
+    Serial.print("    pressure:");
+    Serial.print(data_store.pressure[i]);
+    Serial.println();
+    
+  }
+}
+
 void work() {
     beep();
-    /*
+
+  
+    float temperature = bmp.readTemperature();
+    float pressure = bmp.readPressure();
+/*
     Serial.print(F("Temperature = "));
-    Serial.print(bmp.readTemperature());
+    Serial.print(temperature);
     Serial.println(" *C");
     
     Serial.print(F("Pressure = "));
-    Serial.print(bmp.readPressure());
+    Serial.print(pressure);
     Serial.println(" Pa");
-
-    Serial.print(F("Approx altitude = "));
-    Serial.print(bmp.readAltitude(1013.25)); // this should be adjusted to your local forcase
-    Serial.println(" m");
-
     Serial.println();
-    */
+*/
+    storeData(temperature, pressure);
+    storeData(22.99, 1234.56);
+    
+    printData();
 }
 
 void loop() {
