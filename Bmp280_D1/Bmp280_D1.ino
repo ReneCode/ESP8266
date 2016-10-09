@@ -15,6 +15,7 @@
  */
 
 #include <Adafruit_BMP280.h>
+#include "EEPROM.h"
 
 Adafruit_BMP280 bmp; 
 
@@ -22,12 +23,24 @@ Adafruit_BMP280 bmp;
 const int SLEEP_US = 5 * 1000 * 1000;
 const int BEEP_PIN = 15;
 
+const int FLASH_ADR = 0;
+#define BUFFER_LEN  20
+
+
+typedef struct {
+  int value;
+} config_t;
+
+config_t cfg;
+
 void setup() {
   Serial.begin(9600);
   Serial.println(F("BMP280 test"));
 
   hardwareInit();
   work();
+
+  Serial.println();
 
   ESP.deepSleep(SLEEP_US);
   delay(100);
@@ -44,13 +57,53 @@ void hardwareInit() {
 }
 
 void beep() {
+//  int nr = readFlash();
+
+  loadConfig();
+  cfg.value++;
+  Serial.print("nr:");
+  Serial.print(cfg.value);
+  Serial.println();
+    
   digitalWrite(BEEP_PIN, true);
   delay(10);
   digitalWrite(BEEP_PIN, false);
+
+  saveConfig();
+//  eraseConfig();
 }
+
+
+void eraseConfig() {
+  // Reset EEPROM bytes to '0' for the length of the data structure
+  EEPROM.begin(512);
+  for (int i = 0 ; i < sizeof(cfg) ; i++) {
+    EEPROM.write(i, 0);
+  }
+  delay(200);
+  EEPROM.commit();
+  EEPROM.end();
+}
+
+void loadConfig() {
+  // Loads configuration from EEPROM into RAM
+  EEPROM.begin(512);
+  EEPROM.get( 0, cfg );
+  EEPROM.end();
+}
+
+void saveConfig() {
+  // Save configuration from RAM into EEPROM
+  EEPROM.begin(512);
+  EEPROM.put( 0, cfg );
+  delay(200);
+  EEPROM.commit();                      // Only needed for ESP8266 to get data written
+}
+
 
 void work() {
     beep();
+    /*
     Serial.print(F("Temperature = "));
     Serial.print(bmp.readTemperature());
     Serial.println(" *C");
@@ -64,6 +117,7 @@ void work() {
     Serial.println(" m");
 
     Serial.println();
+    */
 }
 
 void loop() {
