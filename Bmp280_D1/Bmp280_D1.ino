@@ -35,12 +35,12 @@
 
 Adafruit_BMP280 bmp;
 
-const int SLEEP_SECOND = 20;
+const int SLEEP_SECOND = 5 * 60;
 const int BEEP_PIN = 15;
 
 
 const int EMONCMS_NODE_ID = 1;
-const char* PROVIDER_URL = " http://emoncms.org/input/bulk.json";
+const char* PROVIDER_URL = "http://emoncms.org/input/bulk.json";
 
 #define MAX_DATA_COUNT 100
 
@@ -211,7 +211,9 @@ void work() {
     storeData(data);
   }
 
+  delay(100);
   WifiDisconnect();
+  delay(100);
 
   //  printData();
 }

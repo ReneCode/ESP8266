@@ -11,7 +11,7 @@
 bool WifiConnect() 
 {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  int maxTry = 3;
+  int maxTry = 5;
   bool connected = false;
   while (!connected  &&  maxTry > 0)
   {
