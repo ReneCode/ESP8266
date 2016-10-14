@@ -14,16 +14,16 @@
  *  (aber erst nach dem das programm übertragen worden ist)
  *  
  *  Speichern der Daten im Flash
- *    Adresse           Inhalt
- *      0               Anzahl der Datensätze (int)
+ *    Adresse             Inhalt
+ *      0                 Anzahl der Datensätze (int)
  *      
- *      sizeof(int)     temp[0], pressure[0]  (float, float)
- *      
- *      sizeof(int) +    
- *        2*sizeof(float) temp[1], pressure[1]  (float, float)
+ *      sizeof(int)       temp[0], pressure[0]  (float, float)
  *      
  *      sizeof(int) +    
- *        4*sizeof(float) temp[2], pressure[2]  (float, float)
+ *      2*sizeof(float)   temp[1], pressure[1]  (float, float)
+ *      
+ *      sizeof(int) +    
+ *      4*sizeof(float)   temp[2], pressure[2]  (float, float)
  *
  */
 
@@ -32,7 +32,7 @@
 
 Adafruit_BMP280 bmp; 
 
-const int SLEEP_SECOND = 10;
+const int SLEEP_SECOND = 20;
 const int BEEP_PIN = 15;
 
 #define MAX_DATA_COUNT 100
@@ -44,8 +44,8 @@ typedef struct {
   float pressure;
 } data_t;
 
-int     data_count;
-data_t  data_store;
+//int     data_count;
+//data_t  data_store;
 
 void setup() {
   Serial.begin(9600);
@@ -79,64 +79,74 @@ void beep() {
 
 
 void eraseDataStore() {
-  // Reset EEPROM bytes to '0' for the length of the data structure
+  // set 0 as count of data
   EEPROM.begin(512);
-  data_count = 0;
-  EEPROM.write(0, data_count);
+  int count = 0;
+  EEPROM.write(0, count);
   delay(200);
   EEPROM.commit();
   EEPROM.end();
 }
 
 
-void loadData(int count) {
+void loadData(int index, data_t &rData) {
   EEPROM.begin(512);
-  int address = count * ( 2*sizeof(float));
-  EEPROM.get(address, data_store);
+  int address = sizeof(int) + index * ( 2*sizeof(float));
+  Serial.print("load data from:");
+  Serial.print(address);
+  Serial.println();
+  EEPROM.get(address, rData);
   EEPROM.end();
 }
 
 
-void loadDataCount() {
-  // Loads configuration from EEPROM into RAM
+int loadDataCount() {
   EEPROM.begin(512);
-  EEPROM.get(0, data_count);
-  Serial.print(data_count);
+  int count = 0;
+  EEPROM.get(0, count);
   EEPROM.end();
+  return count;
 }
 
-void saveDataStore() {
-  // Save configuration from RAM into EEPROM
+void appendDataStore(int currentCount, const data_t &rData) {
   EEPROM.begin(512);
-  int address = data_count * ( 2 * sizeof(float) );
-  EEPROM.put(address, data_store);
-  data_count = data_count+1;
-  EEPROM.put(0, data_count);  
+  int newIndex = currentCount;
+  int address = sizeof(int) + newIndex * ( 2 * sizeof(float) );
+  // save the data
+
+  Serial.print("append data to:");
+  Serial.print(address);
+  Serial.println();
+  
+  EEPROM.put(address, rData);
+  // save the count
+  EEPROM.put(0, newIndex+1);  
   delay(200);
   EEPROM.commit();                      // Only needed for ESP8266 to get data written
   delay(100);
 }
 
 void storeData(float temperature, float pressure) {
-  //  eraseConfig();
-  loadDataCount();
-  data_store.temperature = temperature;
-  data_store.pressure = pressure;
-  saveDataStore();
+  int count = loadDataCount();
+  data_t data;
+  data.temperature = temperature;
+  data.pressure = pressure;
+  appendDataStore(count, data);
 }
 
 
 void printData() {
   Serial.print("count:");
-  Serial.print(data_count);
+  int count = loadDataCount();
+  Serial.print(count);
   Serial.println();
-
-  for (int i=0; i<data_count; i++) {
-    loadData(i);
+  data_t data;
+  for (int i=0; i<count; i++) {
+    loadData(i, data);
     Serial.print("temp:");
-    Serial.print(data_store.temperature);
+    Serial.print(data.temperature);
     Serial.print("    pressure:");
-    Serial.print(data_store.pressure);
+    Serial.print(data.pressure);
     Serial.println();
   }
 }
