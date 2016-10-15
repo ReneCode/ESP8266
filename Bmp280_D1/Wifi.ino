@@ -39,13 +39,14 @@ void WifiDisconnect()
 int WifiGet(const String &url)
 {
   HTTPClient http;
-
+/*
 Serial.print("Wifi Get:");
 Serial.print(url);
 Serial.println();
+*/
   http.begin(url);
   int ret = http.GET();
-//  http.writeToStream(&Serial);
+  http.writeToStream(&Serial);
   http.end();
   return ret;
 }

@@ -35,14 +35,15 @@
 
 Adafruit_BMP280 bmp;
 
-const int SLEEP_SECOND = 5 * 60;
+const int SLEEP_SECOND = 10 * 60;
 const int BEEP_PIN = 15;
 
 
 const int EMONCMS_NODE_ID = 1;
 const char* PROVIDER_URL = "http://emoncms.org/input/bulk.json";
 
-#define MAX_DATA_COUNT 100
+const int FLASH_SIZE = 4096;
+#define UPLOAD_BUNDLE_SIZE  20
 
 typedef struct {
   float temperature;
@@ -74,33 +75,28 @@ void beep() {
 
 void eraseDataStore() {
   // set 0 as count of data
-  EEPROM.begin(512);
-  int count = 0;
-  EEPROM.write(0, count);
+  int count = 0x0;
+  EEPROM.put(0, count);
   delay(200);
   EEPROM.commit();
-  EEPROM.end();
 }
 
 
-void loadData(int index, data_t &rData) {
-  EEPROM.begin(512);
+bool loadData(int index, data_t &rData) {
   int address = sizeof(int) + index * ( 2 * sizeof(float));
   EEPROM.get(address, rData);
-  EEPROM.end();
+  return !isnan(rData.temperature)  &&
+         !isnan(rData.pressure);
 }
 
 
 int loadDataCount() {
-  EEPROM.begin(512);
   int count = 0;
   EEPROM.get(0, count);
-  EEPROM.end();
   return count;
 }
 
 void appendDataStore(int currentCount, const data_t &rData) {
-  EEPROM.begin(512);
   int newIndex = currentCount;
   int address = sizeof(int) + newIndex * ( 2 * sizeof(float) );
   // save the data
@@ -125,16 +121,20 @@ void printData() {
   Serial.println();
   data_t data;
   for (int i = 0; i < count; i++) {
-    loadData(i, data);
-    Serial.print("temp:");
-    Serial.print(data.temperature);
-    Serial.print("    pressure:");
-    Serial.print(data.pressure);
-    Serial.println();
+    if (loadData(i, data)) {
+      Serial.print(i);
+      Serial.print(" temp:");
+      Serial.print(data.temperature);
+      Serial.print("    pressure:");
+      Serial.print(data.pressure);
+      Serial.println();    
+    }
   }
 }
 
-
+  /*
+      https://emoncms.org/input/bulk.json?data=[[520,16,1137],[530,17,1437,3164],[535,19,1412,3077]]&sentat=543
+  */
 void fillDataParameter(const data_t &data, String &str, int timeDelta = 0) {
   str = String("[") + String(timeDelta) + String(",") + String(EMONCMS_NODE_ID) + String(",") +
         String(data.temperature) + String(",") +
@@ -154,37 +154,68 @@ bool uploadOneData(const data_t &data) {
   return WifiGet(url);
 }
 
-bool uploadStoredData() {
-
-  /*
-
-
-      https://emoncms.org/input/bulk.json?data=[[520,16,1137],[530,17,1437,3164],[535,19,1412,3077]]&sentat=543
-  */
-
+bool uploadBundleData(int idxStart, int idxEnd) {
   String url = PROVIDER_URL + String("?data=[");
-  int count = loadDataCount();
-  for (int i=0; i<count; i++) {
+  bool bOkData = false;
+  for (int i=idxStart; i<=idxEnd; i++) {
     String strData;
     data_t data;
-    loadData(i, data);
-    fillDataParameter(data, strData, i*SLEEP_SECOND);
-    if (i != 0) {
-      url += String(",");
+    if (loadData(i, data)) {
+      fillDataParameter(data, strData, i*SLEEP_SECOND);
+      if (bOkData) {
+        url += String(",");
+      }
+      url = url + strData;      
+      bOkData = true;
     }
-    url = url + strData; 
   }
+  if (!bOkData) {
+    return false;
+  }
+
   url = url + String("]&apikey=") + String(EMONCMS_APIKEY);
 
-//  Serial.print("uploadStoredData:");
-//  Serial.println(url);
+  Serial.print("uploadBundleData:");
+  Serial.print(idxStart);
+  Serial.print(" - ");
+  Serial.print(idxEnd);
+  
+  Serial.println(url);
 
-  return WifiGet(url);
+  return WifiGet(url);  
+}
 
+
+bool uploadStoredData() {
+  bool bOk = true;
+  int count = loadDataCount();
+
+  Serial.print("uploadStoredData:");
+  Serial.println(count);
+
+  
+  int nBundle = count / UPLOAD_BUNDLE_SIZE;
+  int nRestBundle = count % UPLOAD_BUNDLE_SIZE;
+  for (int i=0; i<nBundle; i++) {
+    int idxStart = i * UPLOAD_BUNDLE_SIZE;
+    int idxEnd = idxStart + UPLOAD_BUNDLE_SIZE -1;
+    uploadBundleData(idxStart, idxEnd);
+  }
+  if (nRestBundle > 0) {
+    int idxStart = nBundle * UPLOAD_BUNDLE_SIZE;
+    int idxEnd = count -1;
+    uploadBundleData(idxStart, idxEnd);
+  }
+
+  return bOk;
 }
 
 void work() {
+  EEPROM.begin(FLASH_SIZE);
+
   beep();
+
+//  printData();
 
   data_t data;
 
@@ -202,7 +233,8 @@ void work() {
     } else {
       Serial.println("store data");
       storeData(data);
-      if (uploadStoredData() == true) {
+      if (uploadStoredData() == true) { 
+        Serial.println("erase data");      
         eraseDataStore();
       }
     }
@@ -211,11 +243,12 @@ void work() {
     storeData(data);
   }
 
+  EEPROM.end();
+
+
   delay(100);
   WifiDisconnect();
   delay(100);
-
-  //  printData();
 }
 
 
