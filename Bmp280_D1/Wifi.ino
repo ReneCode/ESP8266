@@ -11,11 +11,12 @@
 bool WifiConnect() 
 {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  int maxTry = 5;
+  int maxTry = 10;
   bool connected = false;
   while (!connected  &&  maxTry > 0)
   {
     delay(1000);
+//    Serial.println(WiFi.status());
     connected = WiFi.status() == WL_CONNECTED;
     maxTry--;
   }
