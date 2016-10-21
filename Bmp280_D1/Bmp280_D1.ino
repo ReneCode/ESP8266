@@ -43,7 +43,7 @@ const int EMONCMS_NODE_ID = 1;
 const char* PROVIDER_URL = "http://emoncms.org/input/bulk.json";
 
 const int FLASH_SIZE = 4096;
-#define UPLOAD_BUNDLE_SIZE  20
+#define UPLOAD_BUNDLE_SIZE  50
 
 typedef struct {
   float temperature;
@@ -154,7 +154,7 @@ bool uploadOneData(const data_t &data) {
   return WifiGet(url);
 }
 
-bool uploadBundleData(int idxStart, int idxEnd) {
+bool uploadBundleData(int idxStart, int idxEnd, int count) {
   String url = PROVIDER_URL + String("?data=[");
   bool bOkData = false;
   for (int i=idxStart; i<=idxEnd; i++) {
@@ -173,7 +173,8 @@ bool uploadBundleData(int idxStart, int idxEnd) {
     return false;
   }
 
-  url = url + String("]&apikey=") + String(EMONCMS_APIKEY);
+  url = url + String("]&sentat=") + String(count * SLEEP_SECOND)
+      + String("&apikey=") + String(EMONCMS_APIKEY);
 
   Serial.print("uploadBundleData:");
   Serial.print(idxStart);
@@ -199,12 +200,12 @@ bool uploadStoredData() {
   for (int i=0; i<nBundle; i++) {
     int idxStart = i * UPLOAD_BUNDLE_SIZE;
     int idxEnd = idxStart + UPLOAD_BUNDLE_SIZE -1;
-    uploadBundleData(idxStart, idxEnd);
+    uploadBundleData(idxStart, idxEnd, count);
   }
   if (nRestBundle > 0) {
     int idxStart = nBundle * UPLOAD_BUNDLE_SIZE;
     int idxEnd = count -1;
-    uploadBundleData(idxStart, idxEnd);
+    uploadBundleData(idxStart, idxEnd, count);
   }
 
   return bOk;
