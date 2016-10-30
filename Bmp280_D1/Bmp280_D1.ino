@@ -48,6 +48,7 @@ const int FLASH_SIZE = 4096;
 typedef struct {
   float temperature;
   float pressure;
+  unsigned int voltage;
 } data_t;
 
 
@@ -58,6 +59,8 @@ void hardwareInit() {
     Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
     while (1);
   }
+
+  pinMode(A0, INPUT);
 
   //  eraseDataStore();
 }
@@ -138,7 +141,9 @@ void printData() {
 void fillDataParameter(const data_t &data, String &str, int timeDelta = 0) {
   str = String("[") + String(timeDelta) + String(",") + String(EMONCMS_NODE_ID) + String(",") +
         String(data.temperature) + String(",") +
-        String(data.pressure) + String("]");
+        String(data.pressure) + String(",") +
+        String(data.voltage) + String("]");
+
 }
 
 
@@ -148,8 +153,8 @@ bool uploadOneData(const data_t &data) {
   fillDataParameter(data, strData);
   url = url + strData + String("]&apikey=") + String(EMONCMS_APIKEY);
 
-//  Serial.print("uploadOneData:");
-//  Serial.println(url);
+  Serial.print("uploadOneData:");
+  Serial.println(url);
 
   return WifiGet(url);
 }
@@ -220,8 +225,9 @@ void work() {
 
   data_t data;
 
-  data.temperature = bmp.readTemperature();
-  data.pressure = bmp.readPressure();
+  data.temperature = bmp.readTemperature() - 0.8;   // 0.8 correction
+  data.pressure = bmp.readPressure() / 100.0;
+  data.voltage = analogRead(A0);
 
   if (WifiConnect()) {
     Serial.println("Wifi connected");
