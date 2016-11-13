@@ -17,13 +17,13 @@
       Adresse             Inhalt
         0                 Anzahl der Datensätze (int)
 
-        sizeof(int)       temp[0], pressure[0]  (float, float)
+        sizeof(int)        temp[0], pressure[0], voltage[0]  (float, float, int)
 
         sizeof(int) +
-        2*sizeof(float)   temp[1], pressure[1]  (float, float)
+        1*sizeof(data_t)   temp[1], pressure[1], voltage[1] (float, float, int)
 
         sizeof(int) +
-        4*sizeof(float)   temp[2], pressure[2]  (float, float)
+        2*sizeof(data_t)   temp[2], pressure[2], voltage[2]  (float, float, int)
 
 */
 
@@ -48,19 +48,19 @@ const int FLASH_SIZE = 4096;
 typedef struct {
   float temperature;
   float pressure;
-  unsigned int voltage;
+  int voltage;
 } data_t;
 
 
 
 void hardwareInit() {
   pinMode(BEEP_PIN, OUTPUT);
+  pinMode(A0, INPUT);
   if (!bmp.begin(0x76)) {
     Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
     while (1);
   }
 
-  pinMode(A0, INPUT);
 
   //  eraseDataStore();
 }
@@ -86,7 +86,7 @@ void eraseDataStore() {
 
 
 bool loadData(int index, data_t &rData) {
-  int address = sizeof(int) + index * ( 2 * sizeof(float));
+  int address = sizeof(int) + index * sizeof(data_t);
   EEPROM.get(address, rData);
   return !isnan(rData.temperature)  &&
          !isnan(rData.pressure);
@@ -101,7 +101,7 @@ int loadDataCount() {
 
 void appendDataStore(int currentCount, const data_t &rData) {
   int newIndex = currentCount;
-  int address = sizeof(int) + newIndex * ( 2 * sizeof(float) );
+  int address = sizeof(int) + newIndex * sizeof(data_t);
   // save the data
   EEPROM.put(address, rData);
   // save the count
@@ -227,7 +227,7 @@ void work() {
 
   data.temperature = bmp.readTemperature() - 0.8;   // 0.8 correction
   data.pressure = bmp.readPressure() / 100.0;
-  data.voltage = analogRead(A0);
+  data.voltage = (int)analogRead(A0);
 
   if (WifiConnect()) {
     Serial.println("Wifi connected");
