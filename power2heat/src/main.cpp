@@ -162,7 +162,10 @@ void loop()
   static unsigned long lastRequest = 0;
   if (millis() - lastRequest > requestInterval)
   {
+    // blue  green board-led during http request
+    digitalWrite(LED_BUILTIN, LOW);
     power = makeHttpRequest();
+    digitalWrite(LED_BUILTIN, HIGH);
 
     lastRequest = millis();
   }
