@@ -7,6 +7,7 @@
 #include <utility.h>
 
 #include "secrets.h"
+#include "dimmer.h"
 
 char ssid[] = SECRET_SSID;
 char pass[] = SECRET_PASS;
@@ -16,9 +17,12 @@ char iotToken[] = IOT_TOKEN;
 
 const int LED_DELAY = 200;
 
-// on esp d1_mini, D6 is GPIO12
-#define LED_RED_PIN D6   // D6 on D1 Mini
-#define LED_GREEN_PIN D5 // D5 on D1 Mini
+// #define LED_RED_PIN D6   // D6 on D1 Mini is GPIO12
+// #define LED_GREEN_PIN D5 // D5 on D1 Mini is GPIO14
+#define LED_RED_PIN D2   // D2 on D1-Mini-lite-8266 is GPIO4
+#define LED_GREEN_PIN D1 // D1 on D1-Mini-lite-8266 is GPIO5
+// #define LED_RED_PIN D8   // D8 on D1-Mini-lite-8266 is GPIO15
+// #define LED_GREEN_PIN D7 // D7 on D1-Mini-lite-8266 is GPIO13
 
 void connectToWiFi()
 {
@@ -62,9 +66,9 @@ int makeHttpRequest()
     const char *powerSensor = "sensor.powermeter_power";
     const String serverUrl = String(iotServerUrl) + "/api/states/" + powerSensor;
 
-    Serial.println();
-    Serial.print("Making HTTP request to: ");
-    Serial.println(iotServerUrl);
+    // Serial.println();
+    // Serial.print("Making HTTP request to: ");
+    // Serial.println(iotServerUrl);
 
     http.begin(client, serverUrl);
     http.addHeader("Authorization", String("Bearer ") + iotToken);
@@ -73,8 +77,8 @@ int makeHttpRequest()
 
     if (httpCode > 0)
     {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpCode);
+      // Serial.print("HTTP Response code: ");
+      // Serial.println(httpCode);
 
       if (httpCode == HTTP_CODE_OK)
       {
@@ -97,11 +101,11 @@ int makeHttpRequest()
           String entityId = doc["entity_id"].as<String>();
           int state = doc["state"].as<int>();
 
-          Serial.println("\nParsed values:");
-          Serial.print("Entity ID: ");
-          Serial.println(entityId);
-          Serial.print("State: ");
-          Serial.println(state);
+          // Serial.println("\nParsed values:");
+          // Serial.print("Entity ID: ");
+          // Serial.println(entityId);
+          // Serial.print("State: ");
+          // Serial.println(state);
 
           result = state;
         }
@@ -136,7 +140,7 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 
-  // Initialize Serial for debugging
+  setup_dimmer();
 
   Serial.println("\n\nStarting ESP8266...");
 
@@ -155,30 +159,32 @@ void setup()
 void loop()
 {
 
-  static int power = 0;
+  static int current_power_consumption = 0;
 
-  const int requestInterval = 3000;
-  // Make HTTP request every 3 seconds
+  const int requestInterval = 5000;
+  // Make HTTP request every 5 seconds
   static unsigned long lastRequest = 0;
   if (millis() - lastRequest > requestInterval)
   {
-    // blue  green board-led during http request
+    // blue  board-led during http request
     digitalWrite(LED_BUILTIN, LOW);
-    power = makeHttpRequest();
+    current_power_consumption = makeHttpRequest();
     digitalWrite(LED_BUILTIN, HIGH);
 
     lastRequest = millis();
+
+    update_dimmer(abs(current_power_consumption));
   }
 
-  // if power is negative then the PV produces more than the house consumes,
+  // if current_power_consumption is negative then the PV produces more than the house consumes,
   // :-)
-  if (power < -POWER_RESERVE)
+  if (current_power_consumption < -POWER_RESERVE)
   {
     // blink green LED to show activity
     digitalWrite(LED_GREEN_PIN, HIGH);
     delay(50);
     digitalWrite(LED_GREEN_PIN, LOW);
-    delay(3000);
+    delay(800);
   }
   else
   {
@@ -186,6 +192,6 @@ void loop()
     digitalWrite(LED_RED_PIN, HIGH);
     delay(50);
     digitalWrite(LED_RED_PIN, LOW);
-    delay(1000);
+    delay(800);
   }
 }
