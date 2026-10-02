@@ -1,0 +1,4 @@
+
+GET http://192.168.178.120:8123/api/states/sensor.powermeter_power
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI4YTU4MTAxNDcyNDI0YTM1ODRiMjBjYmU1Y2Y0ZDg2MiIsImlhdCI6MTc3OTAyNDY1NCwiZXhwIjoyMDk0Mzg0NjU0fQ.Ddf5eGC8f1HTugNkk-rl8ckxVKv1g_nyCz3_dkbhflY
+Content-Type: application/json"

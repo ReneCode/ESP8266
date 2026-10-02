@@ -1,3 +1,4 @@
+.DS_Store
 esptool
 config_wifi.h
 
