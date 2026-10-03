@@ -1,0 +1,47 @@
+alias: "PV-Überschussladen: Dynamische Leistungsanpassung"
+description: "Passt die Ladeleistung eines regelbaren Geräts stufenlos an den Shelly-Überschuss an."
+mode: restart
+trigger:
+  # Triggert alle 15 Sekunden, um dem Gerät Zeit zum Regeln zu geben
+  - platform: time_pattern
+    seconds: "/15"
+condition: []
+action:
+  - variables:
+      # 1. Aktueller Netzbezug/Überschuss (Negativ = Überschuss, Positiv = Bezug)
+      netz_power: "{{ states('sensor.shellypro3em_total_power') | float(0) }}"
+
+      # 2. Aktuelle Ladeleistung des regelbaren Geräts (in Watt)
+      aktuelle_ladung: "{{ states('sensor.dein_geraet_aktuelle_ladeleistung') | float(0) }}"
+
+      # 3. Berechnung des theoretisch verfügbaren Überschusses
+      neuer_lade_wert: "{{ (aktuelle_ladung - netz_power) | int }}"
+
+      # 4. Limits festlegen (Beispiel: Minimal 100W, Maximal 600W fürs Balkonkraftwerk)
+      min_watt: 100
+      max_watt: 600
+
+  - choose:
+      # FALL 1: Es gibt genug Überschuss (Wert liegt über dem Minimum)
+      - conditions:
+          - { { neuer_lade_wert >= min_watt } }
+        action:
+          # Wir begrenzen den berechneten Wert auf das Maximum
+          - variables:
+              ziel_watt: "{{ [neuer_lade_wert, max_watt] | min }}"
+          # Hier wird die neue Wattzahl an dein Gerät gesendet
+          - service: number.set_value
+            target:
+              entity_id: number.dein_geraet_ladeleistung_limit
+            data:
+              value: "{{ ziel_watt }}"
+
+      # FALL 2: Zu wenig Überschuss (Wert fällt unter das Minimum) -> Laden stoppen / minimieren
+      - conditions:
+          - { { neuer_lade_wert < min_watt } }
+        action:
+          - service: number.set_value
+            target:
+              entity_id: number.dein_geraet_ladeleistung_limit
+            data:
+              value: 0

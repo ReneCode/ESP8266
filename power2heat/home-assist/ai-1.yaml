@@ -1,0 +1,47 @@
+alias: "PV-Überschussladen: Verbraucher steuern"
+description: "Schaltet ein Gerät ein, wenn Überschuss vorhanden ist, und aus, wenn Strom bezogen wird."
+mode: restart
+trigger:
+  # Trigger 1: Genug Überschuss zum Einschalten
+  - platform: numeric_state
+    entity_id: sensor.shellypro3em_total_power
+    below: -200
+    for:
+      minutes: 2
+    id: einschalten
+
+  # Trigger 2: Strom wird wieder aus dem Netz bezogen (Ausschalten)
+  - platform: numeric_state
+    entity_id: sensor.shellypro3em_total_power
+    above: 50
+    for:
+      minutes: 3
+    id: ausschalten
+
+condition: []
+
+action:
+  - choose:
+      # Aktion fürs Einschalten
+      - conditions:
+          - condition: trigger
+            id: einschalten
+          - condition: state
+            entity_id: switch.dein_verbraucher_steckdose
+            state: "off"
+         action:
+          - service: switch.turn_on
+            target:
+              entity_id: switch.dein_verbraucher_steckdose
+
+      # Aktion fürs Ausschalten
+      - conditions:
+          - condition: trigger
+            id: ausschalten
+          - condition: state
+            entity_id: switch.dein_verbraucher_steckdose
+            state: "on"
+        action:
+          - service: switch.turn_off
+            target:
+              entity_id: switch.dein_verbraucher_steckdose

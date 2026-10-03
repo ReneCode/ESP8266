@@ -17,4 +17,7 @@ D1-Mini-Lite 8266
 - VCC - VCC
 - Gnd - Gnd
 
+- D2 - red LED
+- D1 - green LED
+
 see: https://www.rbdimmer.com/de/docs/hardware-connection

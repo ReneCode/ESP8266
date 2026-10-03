@@ -173,7 +173,7 @@ void loop()
 
     lastRequest = millis();
 
-    update_dimmer(abs(current_power_consumption));
+    update_dimmer(-1 * current_power_consumption);
   }
 
   // if current_power_consumption is negative then the PV produces more than the house consumes,
@@ -182,16 +182,16 @@ void loop()
   {
     // blink green LED to show activity
     digitalWrite(LED_GREEN_PIN, HIGH);
-    delay(50);
+    delay(20);
     digitalWrite(LED_GREEN_PIN, LOW);
-    delay(800);
+    delay(3000);
   }
   else
   {
     // Blink LED to show activity
     digitalWrite(LED_RED_PIN, HIGH);
-    delay(50);
+    delay(20);
     digitalWrite(LED_RED_PIN, LOW);
-    delay(800);
+    delay(3000);
   }
 }
